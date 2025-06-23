@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EPIC TYPE: Demo Wheel</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Teko:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Teko', sans-serif;
+            background-color: #111827;
+            background-image: radial-gradient(circle at center center, rgba(37, 99, 235, 0.15), #111827), repeating-radial-gradient(circle at center center, rgba(37, 99, 235, 0.15), rgba(37, 99, 235, 0.15), 10px, transparent 20px, transparent 10px);
+            background-blend-mode: multiply;
+            overflow: hidden;
+        }
+        .text-glow {
+            text-shadow: 0 0 8px rgba(37, 99, 235, 0.8), 0 0 20px rgba(37, 99, 235, 0.5);
+        }
+        .wheel-pointer {
+            position: absolute;
+            top: 50%;
+            right: -25px;
+            transform: translateY(-50%) rotate(90deg);
+            width: 0;
+            height: 0;
+            border-left: 30px solid transparent;
+            border-right: 30px solid transparent;
+            border-bottom: 50px solid #facc15;
+            filter: drop-shadow(0px 0px 10px rgba(250, 204, 21, 0.7));
+            z-index: 10;
+        }
+        canvas {
+            max-width: 100%;
+            height: auto;
+            aspect-ratio: 1 / 1;
+        }
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+        .modal-overlay.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+        .modal-content {
+            background: #1f2937;
+            color: #e5e7eb;
+            padding: 2rem 3rem;
+            border-radius: 1rem;
+            border: 1px solid #374151;
+            text-align: center;
+            transform: scale(0.9);
+            transition: transform 0.3s ease;
+            box-shadow: 0px 0px 25px rgba(37, 99, 235, 0.3);
+        }
+        .modal-overlay.visible .modal-content {
+            transform: scale(1);
+        }
+        
+        .confetti {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background-color: #f00;
+            opacity: 0;
+            animation: confetti-fall 3s ease-out forwards;
+        }
+        @keyframes confetti-fall {
+            0% { transform: translateY(0) rotateZ(0); opacity: 1; }
+            100% { transform: translateY(300px) rotateZ(720deg); opacity: 0; }
+        }
+    </style>
+</head>
+<body class="text-slate-200 flex items-center justify-center min-h-screen p-4">
+
+    <div class="w-full max-w-5xl bg-gray-800/50 backdrop-blur-sm p-6 sm:p-8 rounded-2xl shadow-lg border border-gray-700 relative">
+        <div class="absolute top-2 left-2 w-8 h-8 border-t-4 border-l-4 border-blue-400 rounded-tl-xl opacity-50"></div>
+        <div class="absolute top-2 right-2 w-8 h-8 border-t-4 border-r-4 border-blue-400 rounded-tr-xl opacity-50"></div>
+        <div class="absolute bottom-2 left-2 w-8 h-8 border-b-4 border-l-4 border-blue-400 rounded-bl-xl opacity-50"></div>
+        <div class="absolute bottom-2 right-2 w-8 h-8 border-b-4 border-r-4 border-blue-400 rounded-br-xl opacity-50"></div>
+
+        <header class="text-center mb-6">
+            <h1 class="text-5xl sm:text-7xl font-bold text-white text-glow uppercase tracking-wider">EPIC TYPE</h1>
+            <h2 class="text-5xl font-bold text-white uppercase mt-2" style="font-family: Impact, Haettenschweiler, 'Arial Narrow Bold', sans-serif; transform: rotate(-4deg); text-shadow: 1px 1px #000, -1px -1px #000, 1px -1px #000, -1px 1px #000, 3px 3px 8px rgba(0,0,0,0.7);">ДЕМО ВЕЧЕР</h2>
+        </header>
+
+        <main class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+            <div class="relative w-full max-w-md mx-auto flex items-center justify-center">
+                <div id="wheel-container" class="relative">
+                     <canvas id="wheelCanvas" width="500" height="500"></canvas>
+                     <div class="wheel-pointer"></div>
+                </div>
+            </div>
+
+            <div class="w-full max-w-md mx-auto">
+                <div class="bg-gray-900/70 p-6 rounded-xl border border-gray-700">
+                    <h2 class="text-3xl font-semibold mb-4 text-white">Игры на выбор</h2>
+                    <textarea id="optionsInput" class="w-full h-40 p-3 bg-gray-800 border border-gray-600 rounded-lg text-lg text-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" placeholder="Введите название игры (каждое с новой строки)..."></textarea>
+                    
+                    <div class="mt-4 flex flex-wrap gap-3">
+                        <button id="updateButton" class="flex-1 bg-blue-600 text-white font-semibold py-3 px-4 rounded-lg text-xl shadow-md hover:bg-blue-700 transition-all transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 focus:ring-blue-500">
+                            Обновить
+                        </button>
+                        <button id="spinButton" class="flex-1 bg-purple-600 text-white font-bold py-3 px-4 rounded-lg text-xl shadow-lg shadow-purple-500/20 hover:bg-purple-700 transition-all transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 focus:ring-purple-500">
+                            Крутить!
+                        </button>
+                        <button id="resetButton" class="w-full bg-red-600 text-white font-semibold py-3 px-4 rounded-lg text-xl shadow-md hover:bg-red-700 transition-all transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 focus:ring-red-500">
+                            Сбросить
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Winner Modal -->
+    <div id="winnerModal" class="modal-overlay">
+        <div class="modal-content shadow-2xl">
+            <p class="text-2xl text-gray-400 mb-2">Победитель раунда...</p>
+            <h2 id="winner-text" class="text-6xl font-bold text-yellow-400 text-glow mb-8 uppercase"></h2>
+            <button id="closeModalButton" class="bg-blue-600 text-white font-semibold py-2 px-8 rounded-lg text-xl hover:bg-blue-700 transition">Следующий раунд</button>
+        </div>
+    </div>
+
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const canvas = document.getElementById('wheelCanvas');
+            const ctx = canvas.getContext('2d');
+            const optionsInput = document.getElementById('optionsInput');
+            const spinButton = document.getElementById('spinButton');
+            const updateButton = document.getElementById('updateButton');
+            const resetButton = document.getElementById('resetButton');
+            const winnerModal = document.getElementById('winnerModal');
+            const winnerText = document.getElementById('winner-text');
+            const closeModalButton = document.getElementById('closeModalButton');
+            const wheelContainer = document.getElementById('wheel-container');
+
+            const initialOptions = ['Ведьмак 3', 'Cyberpunk 2077', 'Elden Ring', 'Baldur\'s Gate 3', 'Starfield', 'Alan Wake 2'];
+            let options = [...initialOptions];
+            const colors = ['#2563eb', '#4f46e5', '#7c3aed', '#0891b2', '#db2777', '#d946ef', '#0ea5e9', '#6d28d9'];
+            
+            let startAngle = 0;
+            let arc = 0;
+            let spinTimeout = null;
+            let spinAngleStart = 0;
+            let spinTime = 0;
+            let spinTimeTotal = 0;
+            let isSpinning = false;
+            let lastWinnerIndex = -1;
+
+            const drawWheel = () => {
+                const numOptions = options.length;
+                arc = numOptions > 0 ? (Math.PI * 2) / numOptions : 0;
+                const outsideRadius = canvas.width / 2 - 10;
+                const textRadius = outsideRadius * 0.65;
+                const insideRadius = 20;
+
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                if (numOptions === 0) {
+                     ctx.save();
+                     ctx.fillStyle = "#374151";
+                     ctx.textAlign = "center";
+                     ctx.textBaseline = "middle";
+                     ctx.font = `bold 30px Teko, sans-serif`;
+                     ctx.fillText("Добавьте игры", canvas.width / 2, canvas.height / 2);
+                     ctx.restore();
+                     return;
+                }
+
+                ctx.strokeStyle = '#111827';
+                ctx.lineWidth = 5;
+                
+                for (let i = 0; i < numOptions; i++) {
+                    const angle = startAngle + i * arc;
+                    ctx.fillStyle = colors[i % colors.length];
+                    ctx.beginPath();
+                    ctx.arc(canvas.width / 2, canvas.height / 2, outsideRadius, angle, angle + arc, false);
+                    ctx.arc(canvas.width / 2, canvas.height / 2, insideRadius, angle + arc, angle, true);
+                    ctx.stroke();
+                    ctx.fill();
+
+                    ctx.save();
+                    ctx.fillStyle = 'white';
+                    ctx.translate(canvas.width / 2 + Math.cos(angle + arc / 2) * textRadius, canvas.height / 2 + Math.sin(angle + arc / 2) * textRadius);
+                    ctx.rotate(angle + arc / 2 + Math.PI / 2);
+                    const text = options[i];
+
+                    const maxFontSize = 22;
+                    const minFontSize = 10;
+                    const maxWidth = (2 * textRadius * Math.sin(arc / 2)) * 0.9;
+                    let fontSize = maxFontSize;
+                    ctx.font = `bold ${fontSize}px Teko, sans-serif`;
+                    
+                    while (ctx.measureText(text).width > maxWidth && fontSize > minFontSize) {
+                        fontSize--;
+                        ctx.font = `bold ${fontSize}px Teko, sans-serif`;
+                    }
+                    ctx.fillText(text, -ctx.measureText(text).width / 2, 0);
+                    ctx.restore();
+                }
+            };
+            
+            const rotateWheel = () => {
+                spinTime += 30;
+                if (spinTime >= spinTimeTotal) {
+                    stopRotateWheel();
+                    return;
+                }
+                const spinAngle = spinAngleStart - easeOut(spinTime, 0, spinAngleStart, spinTimeTotal);
+                startAngle += (spinAngle * Math.PI / 180);
+                drawWheel();
+                spinTimeout = setTimeout(rotateWheel, 30);
+            };
+
+            const stopRotateWheel = () => {
+                clearTimeout(spinTimeout);
+                
+                const numOptions = options.length;
+                const finalAngle = startAngle % (2 * Math.PI);
+                const normalizedAngle = (2 * Math.PI - finalAngle) % (2 * Math.PI);
+                lastWinnerIndex = Math.floor(normalizedAngle / arc) % numOptions;
+                
+                const winner = options[lastWinnerIndex];
+                winnerText.textContent = winner;
+                
+                if (options.length > 1) {
+                    closeModalButton.textContent = 'Следующий раунд';
+                } else {
+                    closeModalButton.textContent = 'Завершить';
+                }
+                
+                winnerModal.classList.add('visible');
+                triggerConfetti();
+                isSpinning = false;
+            };
+
+            const easeOut = (t, b, c, d) => {
+                const ts = (t /= d) * t;
+                const tc = ts * t;
+                return b + c * (tc + -3 * ts + 3 * t);
+            };
+
+            const updateButtonStates = () => {
+                const canSpin = options.length >= 2;
+                spinButton.disabled = !canSpin || isSpinning;
+                spinButton.classList.toggle('opacity-50', !canSpin || isSpinning);
+                spinButton.classList.toggle('cursor-not-allowed', !canSpin || isSpinning);
+                updateButton.disabled = isSpinning;
+                resetButton.disabled = isSpinning;
+            };
+            
+            spinButton.addEventListener('click', () => {
+                if (isSpinning || options.length < 2) return;
+                
+                isSpinning = true;
+                updateButtonStates();
+                
+                spinAngleStart = Math.random() * 10 + 10;
+                spinTime = 0;
+                spinTimeTotal = Math.random() * 4000 + 5000;
+                rotateWheel();
+            });
+
+            const updateOptionsFromInput = () => {
+                 if(isSpinning) return;
+                const newOptions = optionsInput.value.split('\n').filter(opt => opt.trim() !== '');
+                options = newOptions;
+                startAngle = 0; 
+                drawWheel();
+                updateButtonStates();
+            };
+
+            updateButton.addEventListener('click', updateOptionsFromInput);
+            
+            resetButton.addEventListener('click', () => {
+                if (isSpinning) return;
+                options = [...initialOptions];
+                optionsInput.value = options.join('\n');
+                startAngle = 0;
+                drawWheel();
+                updateButtonStates();
+            });
+
+            closeModalButton.addEventListener('click', () => {
+                winnerModal.classList.remove('visible');
+                if (lastWinnerIndex === -1) return;
+
+                if (options.length >= 1 && lastWinnerIndex > -1) {
+                    options.splice(lastWinnerIndex, 1);
+                }
+                
+                lastWinnerIndex = -1; 
+                optionsInput.value = options.join('\n');
+                startAngle = 0; 
+                drawWheel();
+                updateButtonStates();
+            });
+
+            const triggerConfetti = () => {
+                for (let i = 0; i < 100; i++) {
+                    const confetti = document.createElement('div');
+                    confetti.className = 'confetti';
+                    confetti.style.left = (wheelContainer.offsetWidth / 2) + 'px';
+                    confetti.style.top = (wheelContainer.offsetHeight / 2) + 'px';
+                    const randomColor = colors[Math.floor(Math.random() * colors.length)];
+                    confetti.style.backgroundColor = randomColor;
+                    
+                    const angle = Math.random() * Math.PI * 2;
+                    const distance = Math.random() * (wheelContainer.offsetWidth / 2.5);
+                    const endX = Math.cos(angle) * distance;
+                    const endY = Math.sin(angle) * distance;
+                    
+                    confetti.style.setProperty('--end-x', `${endX}px`);
+                    confetti.style.setProperty('--end-y', `${endY}px`);
+                    
+                    confetti.style.animationName = 'confetti-fall-dynamic';
+                    
+                    const animation = `
+                        @keyframes confetti-fall-dynamic {
+                            0% { transform: translate(0, 0) rotateZ(0); opacity: 1; }
+                            100% { transform: translate(var(--end-x), var(--end-y)) rotateZ(720deg); opacity: 0; }
+                        }
+                    `;
+                    const styleSheet = document.styleSheets[0];
+                    try {
+                         styleSheet.insertRule(animation, styleSheet.cssRules.length);
+                    } catch (e) {
+                        // Avoid error if rule already exists. A more robust solution might check existence first.
+                    }
+
+                    wheelContainer.appendChild(confetti);
+                    setTimeout(() => confetti.remove(), 3000);
+                }
+            };
+            
+            // Initial setup
+            optionsInput.value = options.join('\n');
+            drawWheel();
+            updateButtonStates();
+        });
+    </script>
+</body>
+</html>
